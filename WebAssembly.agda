@@ -1,4 +1,8 @@
+--------------------------------------------------------------------------------
+
 module WebAssembly where
+
+--------------------------------------------------------------------------------
 
 import Data.Empty   as 𝟘      renaming (⊥      to t)
 import Data.Unit    as 𝟙      renaming (⊤      to t)
@@ -8,15 +12,18 @@ import Data.Product as ×      renaming (proj₁ to fst; proj₂ to snd)
 import Data.Sum     as +      renaming (inj₁ to injᴸ; inj₂ to injᴿ)
 import Data.Nat     as ℕ      renaming (ℕ      to t)
 import Data.Integer as ℤ      renaming (ℤ      to t)
+import Data.Float   as 𝔽      renaming (Float  to t)
 import Data.Fin     as Fin    renaming (Fin    to t)
-import Data.Vec     as Vec    renaming (Vec    to t)
-import Data.List    as List   renaming (List   to t)
+import Data.Vec     as Vec    renaming (Vec    to t; [] to []ⱽ; _∷_ to _∷ⱽ_)
+import Data.List    as List   renaming (List   to t; [] to []ᴸ; _∷_ to _∷ᴸ_)
 import Data.String  as String renaming (String to t)
 import Level        as 𝕃      renaming (Level  to t)
 
-open × using (Σ; ∃; _×_; _,_; fst; snd)
-open + using (_⊎_; injᴸ; injᴿ)
-
+open ×    using (Σ; ∃; _×_; _,_; fst; snd)
+open +    using (_⊎_; injᴸ; injᴿ)
+open List using ([]ᴸ; _∷ᴸ_)
+open Vec  using ([]ⱽ; _∷ⱽ_)
+open 𝕃    using (_⊔_)
 
 module Rel₀ where
   open import Relation.Nullary public
@@ -255,7 +262,42 @@ record GlobalType : Set where
 --------------------------------------------------------------------------------
 
 data ResultType : Set where
-  ResuleTypeᶜ : List.t ValType → ResultType
+  ResultTypeᶜ : List.t ValType → ResultType
+
+--------------------------------------------------------------------------------
+
+data Val : ValType → Set where
+  ValI32 : ℤ.t → Val I32
+  ValI64 : ℤ.t → Val I64
+  ValF32 : 𝔽.t → Val F32
+  ValF64 : 𝔽.t → Val F64
+
+module HVec where
+  -- Given a type family `family` indexed on a type `kind` and a list `L` of
+  -- elements of `kind`, this is a type of lists containing inhabitants of
+  -- `kind` such that mapping `family` over the value level list will give `L`.
+  data t {ℓ} {kind : Set ℓ} (family : kind → Set ℓ)
+       : {n : ℕ.t} → (L : Vec.t kind n) → Set ℓ where
+    []ᴴ  : t family []ⱽ
+    _∷ᴴ_ : {n : ℕ.t}
+         → {type : kind}
+         → {types : Vec.t kind n}
+         → (elem : family type)
+         → (rest : t family types)
+         → t family (type ∷ⱽ types)
+
+open HVec using ([]ᴴ; _∷ᴴ_)
+
+typeOf : ∃ (λ t → Val t) → ValType
+typeOf (t , _) = t
+
+data Result (t : ResultType) : Set where
+  ResultOkᶜ   : HVec.t
+                {∃ (λ t → Val t)}
+                typeOf _
+              → Result t
+  -- ResultOkᶜ   : List.t (∃ (λ vt → Val vt)) → Result t
+  ResultTrapᶜ : Result t
 
 --------------------------------------------------------------------------------
 
@@ -269,5 +311,10 @@ record Context : Set where
     locals  : List.t  ValType
     labels  : List.t  ResultType
     return  : Maybe.t ResultType
+
+--------------------------------------------------------------------------------
+
+data Instruction : Set where
+
 
 --------------------------------------------------------------------------------
