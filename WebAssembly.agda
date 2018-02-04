@@ -276,22 +276,21 @@ module HVec where
   -- Given a type family `family` indexed on a type `kind` and a list `L` of
   -- elements of `kind`, this is a type of lists containing inhabitants of
   -- `kind` such that mapping `family` over the value level list will give `L`.
-  data HVec {ℓ} {k : Set ℓ} (f : k → Set ℓ)
-       : {n : ℕ.t} → Vec.t k n → Set ℓ where
+  data HVec {ℓ₁ ℓ₂} {t₁ : Set ℓ₁} {t₂ : Set ℓ₂} (f : t₁ → t₂)
+       : {n : ℕ.t} → Vec.t t₂ n → Set (ℓ₁ ⊔ ℓ₂) where
     []ᴴ  : HVec f []ⱽ
     _∷ᴴ_ : {n : ℕ.t}
-         → {type : k}
-         → {types : Vec.t k n}
-         → (elem : f type)
-         → (rest : HVec f types)
-         → HVec f (type ∷ⱽ types)
+         → {ys : Vec.t t₂ n}
+         → (x  : t₁)
+         → (xs : HVec f ys)
+         → HVec f (f x ∷ⱽ ys)
 
-  t : ∀ {ℓ} → {kind : Set ℓ}
-    → (family : kind → Set ℓ)
+  t : ∀ {ℓ₁ ℓ₂} {t₁ : Set ℓ₁} {t₂ : Set ℓ₂}
+    → (t₁ → t₂)
     → {n : ℕ.t}
-    → Vec.t kind n
-    → Set ℓ
-  t {ℓ} {kind} family {n} L = HVec {ℓ} {kind} family {n} L
+    → Vec.t t₂ n
+    → Set (ℓ₁ ⊔ ℓ₂)
+  t family L = HVec family L
 
 open HVec using ([]ᴴ; _∷ᴴ_)
 
@@ -299,9 +298,8 @@ typeOf : ∃ (λ t → Val t) → ValType
 typeOf (t , _) = t
 
 data Result (t : ResultType) : Set where
-  ResultOkᶜ   : HVec.t
-                {∃ (λ t → Val t)}
-                typeOf _
+  ResultOkᶜ   : ∀ {n : ℕ.t} {v : Vec.t ValType n}
+              → HVec.t {t₁ = ∃ (λ t → Val t)} {t₂ = ValType} typeOf v
               → Result t
   -- ResultOkᶜ   : List.t (∃ (λ vt → Val vt)) → Result t
   ResultTrapᶜ : Result t
