@@ -276,15 +276,22 @@ module HVec where
   -- Given a type family `family` indexed on a type `kind` and a list `L` of
   -- elements of `kind`, this is a type of lists containing inhabitants of
   -- `kind` such that mapping `family` over the value level list will give `L`.
-  data t {ℓ} {kind : Set ℓ} (family : kind → Set ℓ)
-       : {n : ℕ.t} → (L : Vec.t kind n) → Set ℓ where
-    []ᴴ  : t family []ⱽ
+  data HVec {ℓ} {k : Set ℓ} (f : k → Set ℓ)
+       : {n : ℕ.t} → Vec.t k n → Set ℓ where
+    []ᴴ  : HVec f []ⱽ
     _∷ᴴ_ : {n : ℕ.t}
-         → {type : kind}
-         → {types : Vec.t kind n}
-         → (elem : family type)
-         → (rest : t family types)
-         → t family (type ∷ⱽ types)
+         → {type : k}
+         → {types : Vec.t k n}
+         → (elem : f type)
+         → (rest : HVec f types)
+         → HVec f (type ∷ⱽ types)
+
+  t : ∀ {ℓ} → {kind : Set ℓ}
+    → (family : kind → Set ℓ)
+    → {n : ℕ.t}
+    → Vec.t kind n
+    → Set ℓ
+  t {ℓ} {kind} family {n} L = HVec {ℓ} {kind} family {n} L
 
 open HVec using ([]ᴴ; _∷ᴴ_)
 
