@@ -45,6 +45,11 @@ postulate unsafeError : {t : Set} → String.t → t
 
 --------------------------------------------------------------------------------
 
+Name : Set
+Name = String.t
+
+--------------------------------------------------------------------------------
+
 module QT where
   data QuantityType : Set where
     bitsTypeᶜ  : QuantityType
@@ -215,8 +220,8 @@ data Kind : Set where
 record ValType : Set where
   constructor ValTypeᶜ
   field
-    kind : Kind
-    size : Size
+    kindᶠ : Kind
+    sizeᶠ : Size
 
 pattern I32 = ValTypeᶜ integerᶜ  S32ᶜ
 pattern I64 = ValTypeᶜ integerᶜ  S64ᶜ
@@ -226,8 +231,10 @@ pattern F64 = ValTypeᶜ floatingᶜ S64ᶜ
 --------------------------------------------------------------------------------
 
 data FuncType : Set where
-  _:→_ : List.t ValType
-       → List.t ValType
+  _:→_ : (args    : List.t ValType)
+       → (results : List.t ValType)
+       → {_ : (List.length results ≡ 0) ⊎ (List.length results ≡ 1)}
+       -- ^ NOTE: may be removed in future versions of WebAssembly
        → FuncType
   -- FIXME: define constructor(s)
 
@@ -238,11 +245,16 @@ data TableType : Set where
 
 --------------------------------------------------------------------------------
 
+limits-are-valid : ℕ.t → Maybe.t ℕ.t → Set
+limits-are-valid _   Maybe.nothing    = 𝟙.t
+limits-are-valid min (Maybe.just max) = ℕ._≤_ min max
+
 record Limits : Set where
   constructor Limitsᶜ
   field
-    min : ℕ.t
-    max : Maybe.t ℕ.t
+    minᶠ   : ℕ.t
+    maxᶠ   : Maybe.t ℕ.t
+    validᶠ : limits-are-valid minᶠ maxᶠ
 
 data MemType : Set where
   MemTypeᶜ : Limits → MemType
@@ -256,13 +268,8 @@ data Mut : Set where
 record GlobalType : Set where
   constructor GlobalTypeᶜ
   field
-    mutability : Mut
-    type       : ValType
-
---------------------------------------------------------------------------------
-
-data ResultType : Set where
-  ResultTypeᶜ : List.t ValType → ResultType
+    mutabilityᶠ : Mut
+    typeᶠ       : ValType
 
 --------------------------------------------------------------------------------
 
@@ -272,10 +279,15 @@ data Val : ValType → Set where
   ValF32 : 𝔽.t → Val F32
   ValF64 : 𝔽.t → Val F64
 
+SomeVal : Set
+SomeVal = ∃ Val
+
+typeOfSomeVal : SomeVal → ValType
+typeOfSomeVal (t , _) = t
+
+--------------------------------------------------------------------------------
+
 module HVec where
-  -- Given a type family `family` indexed on a type `kind` and a list `L` of
-  -- elements of `kind`, this is a type of lists containing inhabitants of
-  -- `kind` such that mapping `family` over the value level list will give `L`.
   data HVec {ℓ₁ ℓ₂} {t₁ : Set ℓ₁} {t₂ : Set ℓ₂} (f : t₁ → t₂)
        : {n : ℕ.t} → Vec.t t₂ n → Set (ℓ₁ ⊔ ℓ₂) where
     []ᴴ  : HVec f []ⱽ
@@ -285,7 +297,9 @@ module HVec where
          → (xs : HVec f ys)
          → HVec f (f x ∷ⱽ ys)
 
-  t : ∀ {ℓ₁ ℓ₂} {t₁ : Set ℓ₁} {t₂ : Set ℓ₂}
+  t : ∀ {ℓ₁ ℓ₂}
+    → {t₁ : Set ℓ₁}
+    → {t₂ : Set ℓ₂}
     → (t₁ → t₂)
     → {n : ℕ.t}
     → Vec.t t₂ n
@@ -294,32 +308,148 @@ module HVec where
 
 open HVec using ([]ᴴ; _∷ᴴ_)
 
-typeOf : ∃ (λ t → Val t) → ValType
-typeOf (t , _) = t
+--------------------------------------------------------------------------------
 
-data Result (t : ResultType) : Set where
-  ResultOkᶜ   : ∀ {n : ℕ.t} {v : Vec.t ValType n}
-              → HVec.t {t₁ = ∃ (λ t → Val t)} {t₂ = ValType} typeOf v
-              → Result t
-  -- ResultOkᶜ   : List.t (∃ (λ vt → Val vt)) → Result t
-  ResultTrapᶜ : Result t
+data ResultType {n : ℕ.t} (v : Vec.t ValType n) : Set where
+  ResultTypeᶜ : HVec.t typeOfSomeVal v → ResultType v
+
+--------------------------------------------------------------------------------
+
+data Result {n} {v : Vec.t ValType n} {t : ResultType v} : Set where
+  ResultOkᶜ   : {n : ℕ.t}
+              → {v : Vec.t ValType n}
+              → HVec.t typeOfSomeVal v
+              → Result
+  ResultTrapᶜ : Result
+
+--------------------------------------------------------------------------------
+
+data SomeResultType : Set where
+  SomeResultTypeᶜ : {n : ℕ.t}
+                  → {v : Vec.t ValType n}
+                  → ResultType {n} v
+                  → SomeResultType
+
+data SomeResult : Set where
+  SomeResultᶜ : {n : ℕ.t}
+              → {v : Vec.t ValType n}
+              → {t : ResultType {n} v}
+              → Result {n} {v} {t}
+              → SomeResult
 
 --------------------------------------------------------------------------------
 
 record Context : Set where
   field
-    types   : List.t  FuncType
-    funcs   : List.t  FuncType
-    tables  : List.t  TableType
-    mems    : List.t  MemType
-    globals : List.t  GlobalType
-    locals  : List.t  ValType
-    labels  : List.t  ResultType
-    return  : Maybe.t ResultType
+    typesᶠ   : List.t  FuncType
+    funcsᶠ   : List.t  FuncType
+    tablesᶠ  : List.t  TableType
+    memsᶠ    : List.t  MemType
+    globalsᶠ : List.t  GlobalType
+    localsᶠ  : List.t  ValType
+    labelsᶠ  : List.t  SomeResultType
+    returnᶠ  : Maybe.t SomeResultType
 
 --------------------------------------------------------------------------------
 
-data Instruction : Set where
+TypeIdx FuncIdx TableIdx MemIdx GlobalIdx LocalIdx LabelIdx : Context → Set
+TypeIdx   Γ = Fin.t (List.length (Context.typesᶠ   Γ))
+FuncIdx   Γ = Fin.t (List.length (Context.funcsᶠ   Γ))
+TableIdx  Γ = Fin.t (List.length (Context.tablesᶠ  Γ))
+MemIdx    Γ = Fin.t (List.length (Context.memsᶠ    Γ))
+GlobalIdx Γ = Fin.t (List.length (Context.globalsᶠ Γ))
+LocalIdx  Γ = Fin.t (List.length (Context.localsᶠ  Γ))
+LabelIdx  Γ = Fin.t (List.length (Context.labelsᶠ  Γ))
 
+--------------------------------------------------------------------------------
+
+record Func (Γ : Context) : Set where
+  field
+    typeᶠ   : TypeIdx Γ
+    localsᶠ : List.t ValType
+    bodyᶠ   : 𝟙.t
+
+--------------------------------------------------------------------------------
+
+data Instruction : Set where -- FIXME
+
+-- data _⊢_ (Γ : Context) : Set where -- FIXME
+
+--------------------------------------------------------------------------------
+
+Addr FuncAddr TableAddr MemAddr GlobalAddr : Set
+Addr       = ℕ.t
+FuncAddr   = Addr
+TableAddr  = Addr
+MemAddr    = Addr
+GlobalAddr = Addr
+
+data ExternVal : Set where
+  ExternValFuncᶜ   : FuncAddr   → ExternVal
+  ExternValTableᶜ  : TableAddr  → ExternVal
+  ExternValMemᶜ    : MemAddr    → ExternVal
+  ExternValGlobalᶜ : GlobalAddr → ExternVal
+
+record ExportInst : Set where
+  field
+    nameᶠ  : Name
+    valueᶠ : ExternVal
+
+record ModuleInst : Set where
+  field
+    typesᶠ       : List.t FuncType
+    funcaddrsᶠ   : List.t FuncAddr
+    tableaddrsᶠ  : List.t TableAddr
+    memaddrsᶠ    : List.t MemAddr
+    globaladdrsᶠ : List.t GlobalAddr
+    exportsᶠ     : List.t ExportInst
+
+data FuncInst (Γ : Context) : Set where
+  FuncInstWASM : (type : FuncType)
+               → (mod  : ModuleInst)
+               → (code : Func Γ)
+               → FuncInst Γ
+  -- FuncInstFFI  : {type : FuncType}
+  --              → {hostcode : ???}
+  --              → FuncInst
+
+data FuncElem : Set where
+  FuncElemᶜ : Maybe.t FuncAddr → FuncElem
+
+record TableInst : Set where
+  field
+    elemᶠ : List.t FuncElem
+    maxᶠ  : Maybe.t ℕ.t
+
+record MemInst : Set where
+  field
+    dataᶠ : List.t (Fin.t 256)
+    maxᶠ  : Maybe.t ℕ.t
+
+record GlobalInst : Set where
+  field
+    valueᶠ : SomeVal
+    mutᶠ   : Mut
+
+record Store (Γ : Context) : Set where
+  field
+    funcsᶠ   : List.t (FuncInst Γ)
+    tablesᶠ  : List.t TableInst
+    memsᶠ    : List.t MemInst
+    globalsᶠ : List.t GlobalInst
+
+record Label : Set where
+  field
+    arityᶠ  : ℕ.t
+    targetᶠ : List.t Instruction
+
+data Stack (Γ : Context) : Set where
+  StackNilᶜ         : Stack Γ
+  StackValueᶜ       : SomeVal
+                    → Stack Γ → Stack Γ
+  StackLabelᶜ       : Label
+                    → Stack Γ → Stack Γ
+  StackActivationsᶜ : 𝟙.t -- FIXME
+                    → Stack Γ → Stack Γ
 
 --------------------------------------------------------------------------------
