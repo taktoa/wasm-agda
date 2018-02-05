@@ -33,7 +33,7 @@ module Rel₂ where
   open import Relation.Binary.PropositionalEquality public
 
 open Rel₀ using (¬_)
-open Rel₂ using (_≡_; refl; Rel)
+open Rel₂ using (_≡_; _≢_; refl; Rel)
 
 --------------------------------------------------------------------------------
 
@@ -223,6 +223,9 @@ record ValType : Set where
     kindᶠ : Kind
     sizeᶠ : Size
 
+pattern VT kind size = ValTypeᶜ kind size
+pattern I size = ValTypeᶜ integerᶜ  size
+pattern F size = ValTypeᶜ floatingᶜ size
 pattern I32 = ValTypeᶜ integerᶜ  S32ᶜ
 pattern I64 = ValTypeᶜ integerᶜ  S64ᶜ
 pattern F32 = ValTypeᶜ floatingᶜ S32ᶜ
@@ -371,8 +374,43 @@ record Func (Γ : Context) : Set where
 
 --------------------------------------------------------------------------------
 
-data Instruction : Set where -- FIXME
-
+data Instruction : List.t ValType → List.t ValType → Set where
+  constᴵ       : ∀ {Σ vt}  → Val vt
+                           → Instruction Σ (vt ∷ᴸ Σ)
+  clzᴵ         : ∀ {Σ n}   → Instruction (I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+  ctzᴵ         : ∀ {Σ n}   → Instruction (I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+  popcntᴵ      : ∀ {Σ n}   → Instruction (I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+  absᴵ         : ∀ {Σ n}   → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+  negᴵ         : ∀ {Σ n}   → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+  sqrtᴵ        : ∀ {Σ n}   → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+  ceilᴵ        : ∀ {Σ n}   → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+  floorᴵ       : ∀ {Σ n}   → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+  truncᴵ       : ∀ {Σ n}   → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+  nearestᴵ     : ∀ {Σ n}   → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+  addᴵ         : ∀ {Σ k n} → Instruction (VT k n ∷ᴸ VT k n ∷ᴸ Σ) (VT k n ∷ᴸ Σ)
+  subᴵ         : ∀ {Σ k n} → Instruction (VT k n ∷ᴸ VT k n ∷ᴸ Σ) (VT k n ∷ᴸ Σ)
+  mulᴵ         : ∀ {Σ k n} → Instruction (VT k n ∷ᴸ VT k n ∷ᴸ Σ) (VT k n ∷ᴸ Σ)
+  div_uᴵ       : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+  div_sᴵ       : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+  rem_uᴵ       : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+  rem_sᴵ       : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+  andᴵ         : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+  orᴵ          : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+  xorᴵ         : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+  shlᴵ         : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+  shr_uᴵ       : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+  shr_sᴵ       : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+  rotlᴵ        : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+  rotrᴵ        : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+  divᴵ         : ∀ {Σ n}   → Instruction (F n ∷ᴸ F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+  minᴵ         : ∀ {Σ n}   → Instruction (F n ∷ᴸ F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+  maxᴵ         : ∀ {Σ n}   → Instruction (F n ∷ᴸ F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+  copysignᴵ    : ∀ {Σ n}   → Instruction (F n ∷ᴸ F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+  -- convert_u    : ∀ {Σ }
+  reinterpretᴵ : ∀ {Σ k₁ n₁ k₂ n₂}
+               → {_ : k₁ ≢ k₂}
+               → Instruction (VT k₁ n₁ ∷ᴸ Σ) (VT k₂ n₂ ∷ᴸ Σ)
+  -- FIXME
 -- data _⊢_ (Γ : Context) : Set where -- FIXME
 
 --------------------------------------------------------------------------------
@@ -438,10 +476,19 @@ record Store (Γ : Context) : Set where
     memsᶠ    : List.t MemInst
     globalsᶠ : List.t GlobalInst
 
+data InstructionList : List.t ValType → List.t ValType → Set where
+  InstructionNil  : ∀ {rest} → InstructionList rest rest
+  InstructionCons : ∀ {x y z}
+                  → Instruction x y
+                  → InstructionList y z
+                  → InstructionList x z
+
 record Label : Set where
   field
     arityᶠ  : ℕ.t
-    targetᶠ : List.t Instruction
+    beforeᶠ : List.t ValType
+    targetᶠ : InstructionList beforeᶠ []ᴸ
+    validᶠ  : ℕ._≤_ arityᶠ (List.length beforeᶠ)
 
 data Stack (Γ : Context) : Set where
   StackNilᶜ         : Stack Γ
