@@ -15,13 +15,14 @@ import Data.Integer as ℤ      renaming (ℤ      to t)
 import Data.Float   as 𝔽      renaming (Float  to t)
 import Data.Fin     as Fin    renaming (Fin    to t)
 import Data.Vec     as Vec    renaming (Vec    to t; [] to []ⱽ; _∷_ to _∷ⱽ_)
-import Data.List    as List   renaming (List   to t; [] to []ᴸ; _∷_ to _∷ᴸ_)
+import Data.List    as List   renaming (List   to t;
+                                        [] to []ᴸ; _∷_ to _∷ᴸ_; _++_ to _++ᴸ_)
 import Data.String  as String renaming (String to t)
 import Level        as 𝕃      renaming (Level  to t)
 
 open ×    using (Σ; ∃; _×_; _,_; fst; snd)
 open +    using (_⊎_; injᴸ; injᴿ)
-open List using ([]ᴸ; _∷ᴸ_)
+open List using ([]ᴸ; _∷ᴸ_; _++ᴸ_)
 open Vec  using ([]ⱽ; _∷ⱽ_)
 open 𝕃    using (_⊔_)
 
@@ -70,8 +71,7 @@ module QT where
 
   _>_ lhs rhs = rhs < lhs
 
-  _≤_ lhs rhs = let open 𝟚 using (_∨_)
-                in (lhs ≡ rhs) ⊎ (lhs < rhs)
+  _≤_ lhs rhs = (lhs ≡ rhs) ⊎ (lhs < rhs)
 
   _≥_ lhs rhs = rhs ≤ lhs
 
@@ -314,7 +314,7 @@ open HVec using ([]ᴴ; _∷ᴴ_)
 --------------------------------------------------------------------------------
 
 data ResultType {n : ℕ.t} (v : Vec.t ValType n) : Set where
-  ResultTypeᶜ : HVec.t typeOfSomeVal v → ResultType v
+  ResultTypeᶜ : ResultType v
 
 --------------------------------------------------------------------------------
 
@@ -374,43 +374,130 @@ record Func (Γ : Context) : Set where
 
 --------------------------------------------------------------------------------
 
-data Instruction : List.t ValType → List.t ValType → Set where
-  constᴵ       : ∀ {Σ vt}  → Val vt
-                           → Instruction Σ (vt ∷ᴸ Σ)
-  clzᴵ         : ∀ {Σ n}   → Instruction (I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
-  ctzᴵ         : ∀ {Σ n}   → Instruction (I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
-  popcntᴵ      : ∀ {Σ n}   → Instruction (I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
-  absᴵ         : ∀ {Σ n}   → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
-  negᴵ         : ∀ {Σ n}   → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
-  sqrtᴵ        : ∀ {Σ n}   → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
-  ceilᴵ        : ∀ {Σ n}   → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
-  floorᴵ       : ∀ {Σ n}   → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
-  truncᴵ       : ∀ {Σ n}   → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
-  nearestᴵ     : ∀ {Σ n}   → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
-  addᴵ         : ∀ {Σ k n} → Instruction (VT k n ∷ᴸ VT k n ∷ᴸ Σ) (VT k n ∷ᴸ Σ)
-  subᴵ         : ∀ {Σ k n} → Instruction (VT k n ∷ᴸ VT k n ∷ᴸ Σ) (VT k n ∷ᴸ Σ)
-  mulᴵ         : ∀ {Σ k n} → Instruction (VT k n ∷ᴸ VT k n ∷ᴸ Σ) (VT k n ∷ᴸ Σ)
-  div_uᴵ       : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
-  div_sᴵ       : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
-  rem_uᴵ       : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
-  rem_sᴵ       : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
-  andᴵ         : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
-  orᴵ          : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
-  xorᴵ         : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
-  shlᴵ         : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
-  shr_uᴵ       : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
-  shr_sᴵ       : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
-  rotlᴵ        : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
-  rotrᴵ        : ∀ {Σ n}   → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
-  divᴵ         : ∀ {Σ n}   → Instruction (F n ∷ᴸ F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
-  minᴵ         : ∀ {Σ n}   → Instruction (F n ∷ᴸ F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
-  maxᴵ         : ∀ {Σ n}   → Instruction (F n ∷ᴸ F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
-  copysignᴵ    : ∀ {Σ n}   → Instruction (F n ∷ᴸ F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
-  -- convert_u    : ∀ {Σ }
-  reinterpretᴵ : ∀ {Σ k₁ n₁ k₂ n₂}
-               → {_ : k₁ ≢ k₂}
-               → Instruction (VT k₁ n₁ ∷ᴸ Σ) (VT k₂ n₂ ∷ᴸ Σ)
-  -- FIXME
+record MemArg : Set where
+  field
+    offsetᶠ : ℕ.t
+    alignᶠ  : ℕ.t
+
+--------------------------------------------------------------------------------
+
+mutual
+  data Instruction {Γ : Context} : List.t ValType → List.t ValType → Set where
+    constᴵ          : ∀ {Σ t}     → Val t
+                                  → Instruction Σ (t ∷ᴸ Σ)
+    clzᴵ            : ∀ {Σ n}     → Instruction (I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    ctzᴵ            : ∀ {Σ n}     → Instruction (I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    popcntᴵ         : ∀ {Σ n}     → Instruction (I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    absᴵ            : ∀ {Σ n}     → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+    negᴵ            : ∀ {Σ n}     → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+    sqrtᴵ           : ∀ {Σ n}     → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+    ceilᴵ           : ∀ {Σ n}     → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+    floorᴵ          : ∀ {Σ n}     → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+    truncᴵ          : ∀ {Σ n}     → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+    nearestᴵ        : ∀ {Σ n}     → Instruction (F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+    addᴵ            : ∀ {Σ k n}   → Instruction (VT k n ∷ᴸ VT k n ∷ᴸ Σ) (VT k n ∷ᴸ Σ)
+    subᴵ            : ∀ {Σ k n}   → Instruction (VT k n ∷ᴸ VT k n ∷ᴸ Σ) (VT k n ∷ᴸ Σ)
+    mulᴵ            : ∀ {Σ k n}   → Instruction (VT k n ∷ᴸ VT k n ∷ᴸ Σ) (VT k n ∷ᴸ Σ)
+    div-uᴵ          : ∀ {Σ n}     → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    div-sᴵ          : ∀ {Σ n}     → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    rem-uᴵ          : ∀ {Σ n}     → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    rem-sᴵ          : ∀ {Σ n}     → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    andᴵ            : ∀ {Σ n}     → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    orᴵ             : ∀ {Σ n}     → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    xorᴵ            : ∀ {Σ n}     → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    shlᴵ            : ∀ {Σ n}     → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    shr-uᴵ          : ∀ {Σ n}     → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    shr-sᴵ          : ∀ {Σ n}     → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    rotlᴵ           : ∀ {Σ n}     → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    rotrᴵ           : ∀ {Σ n}     → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    divᴵ            : ∀ {Σ n}     → Instruction (F n ∷ᴸ F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+    minᴵ            : ∀ {Σ n}     → Instruction (F n ∷ᴸ F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+    maxᴵ            : ∀ {Σ n}     → Instruction (F n ∷ᴸ F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+    copysignᴵ       : ∀ {Σ n}     → Instruction (F n ∷ᴸ F n ∷ᴸ Σ) (F n ∷ᴸ Σ)
+    eqzᴵ            : ∀ {Σ n}     → Instruction (I n ∷ᴸ Σ) (I32 ∷ᴸ Σ)
+    eqᴵ             : ∀ {Σ k n}   → Instruction (VT k n ∷ᴸ VT k n ∷ᴸ Σ) (I32 ∷ᴸ Σ)
+    neᴵ             : ∀ {Σ k n}   → Instruction (VT k n ∷ᴸ VT k n ∷ᴸ Σ) (I32 ∷ᴸ Σ)
+    lt-uᴵ           : ∀ {Σ n}     → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I32 ∷ᴸ Σ)
+    lt-sᴵ           : ∀ {Σ n}     → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I32 ∷ᴸ Σ)
+    gt-uᴵ           : ∀ {Σ n}     → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I32 ∷ᴸ Σ)
+    gt-sᴵ           : ∀ {Σ n}     → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I32 ∷ᴸ Σ)
+    le-uᴵ           : ∀ {Σ n}     → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I32 ∷ᴸ Σ)
+    le-sᴵ           : ∀ {Σ n}     → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I32 ∷ᴸ Σ)
+    ge-uᴵ           : ∀ {Σ n}     → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I32 ∷ᴸ Σ)
+    ge-sᴵ           : ∀ {Σ n}     → Instruction (I n ∷ᴸ I n ∷ᴸ Σ) (I32 ∷ᴸ Σ)
+    wrapᴵ           : ∀ {Σ}       → Instruction (I64 ∷ᴸ Σ) (I32 ∷ᴸ Σ)
+    extend-uᴵ       : ∀ {Σ}       → Instruction (I32 ∷ᴸ Σ) (I64 ∷ᴸ Σ)
+    extend-sᴵ       : ∀ {Σ}       → Instruction (I32 ∷ᴸ Σ) (I64 ∷ᴸ Σ)
+    trunc-uᴵ        : ∀ {Σ m n}   → Instruction (F m ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    trunc-sᴵ        : ∀ {Σ m n}   → Instruction (F m ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    demoteᴵ         : ∀ {Σ}       → Instruction (F64 ∷ᴸ Σ) (F32 ∷ᴸ Σ)
+    promoteᴵ        : ∀ {Σ}       → Instruction (F32 ∷ᴸ Σ) (F64 ∷ᴸ Σ)
+    convert-uᴵ      : ∀ {Σ m n}   → Instruction (I m ∷ᴸ Σ) (F n ∷ᴸ Σ)
+    convert-sᴵ      : ∀ {Σ m n}   → Instruction (I m ∷ᴸ Σ) (F n ∷ᴸ Σ)
+    reinterpretᴵ    : ∀ {Σ t₁ t₂} → {_ : ValType.kindᶠ t₁ ≢ ValType.kindᶠ t₂}
+                                  → Instruction (t₁ ∷ᴸ Σ) (t₂ ∷ᴸ Σ)
+    dropᴵ           : ∀ {Σ t}     → Instruction (t ∷ᴸ Σ) Σ
+    selectᴵ         : ∀ {Σ t}     → Instruction (t ∷ᴸ t ∷ᴸ I32 ∷ᴸ Σ) (t ∷ᴸ Σ)
+    get-localᴵ      : ∀ {Σ}       → Instruction Σ Σ -- FIXME
+    set-localᴵ      : ∀ {Σ}       → Instruction Σ Σ -- FIXME
+    tee-localᴵ      : ∀ {Σ}       → Instruction Σ Σ -- FIXME
+    get-globalᴵ     : ∀ {Σ}       → Instruction Σ Σ -- FIXME
+    set-globalᴵ     : ∀ {Σ}       → Instruction Σ Σ -- FIXME
+    loadᴵ           : ∀ {Σ t}     → MemArg
+                                  → Instruction (I32 ∷ᴸ Σ) (t ∷ᴸ Σ)
+    load8-uᴵ        : ∀ {Σ n}     → MemArg
+                                  → Instruction (I32 ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    load8-sᴵ        : ∀ {Σ n}     → MemArg
+                                  → Instruction (I32 ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    load16-uᴵ       : ∀ {Σ n}     → MemArg
+                                  → Instruction (I32 ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    load16-sᴵ       : ∀ {Σ n}     → MemArg
+                                  → Instruction (I32 ∷ᴸ Σ) (I n ∷ᴸ Σ)
+    load32-uᴵ       : ∀ {Σ}       → MemArg
+                                  → Instruction (I32 ∷ᴸ Σ) (I64 ∷ᴸ Σ)
+    load32-sᴵ       : ∀ {Σ}       → MemArg
+                                  → Instruction (I32 ∷ᴸ Σ) (I64 ∷ᴸ Σ)
+    storeᴵ          : ∀ {Σ t}     → MemArg
+                                  → Instruction (I32 ∷ᴸ t ∷ᴸ Σ) Σ
+    store8ᴵ         : ∀ {Σ n}     → MemArg
+                                  → Instruction (I32 ∷ᴸ I n ∷ᴸ Σ) Σ
+    store16ᴵ        : ∀ {Σ n}     → MemArg
+                                  → Instruction (I32 ∷ᴸ I n ∷ᴸ Σ) Σ
+    store32ᴵ        : ∀ {Σ}       → MemArg
+                                  → Instruction (I32 ∷ᴸ I64 ∷ᴸ Σ) Σ
+    current-memoryᴵ : ∀ {Σ}       → Instruction Σ (I32 ∷ᴸ Σ)
+    grow-memoryᴵ    : ∀ {Σ}       → Instruction (I32 ∷ᴸ Σ) (I32 ∷ᴸ Σ)
+    nopᴵ            : ∀ {Σ}       → Instruction Σ Σ
+    unreachableᴵ    : ∀ {Σ₁ Σ₂}   → Instruction Σ₁ Σ₂
+    blockᴵ_endᴵ     : ∀ {Σᵢ Σₒ}   → InstructionList {Γ} []ᴸ Σᵢ
+                                  → Instruction Σₒ (Σᵢ ++ᴸ Σₒ) -- FIXME
+    loopᴵ_endᴵ      : ∀ {Σ}       → InstructionList {Γ} Σ Σ
+                                  → Instruction Σ Σ -- FIXME
+    ifᴵ_elseᴵ_endᴵ  : ∀ {Σᵢ Σₒ}   → InstructionList {Γ} []ᴸ Σᵢ
+                                  → InstructionList {Γ} []ᴸ Σᵢ
+                                  → Instruction (I32 ∷ᴸ Σₒ) (Σᵢ ++ᴸ Σₒ)
+    brᴵ             : ∀ {Σ}       → LabelIdx Γ
+                                  → Instruction Σ Σ -- FIXME
+    br-ifᴵ          : ∀ {Σ}       → LabelIdx Γ
+                                  → Instruction Σ Σ -- FIXME
+    br-tableᴵ       : ∀ {Σ}       → LabelIdx Γ
+                                  → Instruction Σ Σ -- FIXME
+    returnᴵ         : ∀ {Σ₁ Σ₂}   → {n : ℕ.t}
+                                  → {v : Vec.t ValType n}
+                                  → {_ : Context.returnᶠ Γ
+                                         ≡ Maybe.just
+                                           (SomeResultTypeᶜ {n} {v} ResultTypeᶜ)}
+                                  → Instruction (Vec.toList v ++ᴸ Σ₁) Σ₂
+    callᴵ           : ∀ {Σ}       → Instruction Σ Σ -- FIXME
+    call-indirectᴵ  : ∀ {Σ}       → Instruction Σ Σ -- FIXME
+
+  data InstructionList {Γ : Context}
+       : List.t ValType → List.t ValType → Set where
+    ■    : ∀ {rest}  → InstructionList {Γ} rest rest
+    _≥≥_ : ∀ {x y z} → Instruction {Γ} x y
+                     → InstructionList {Γ} y z
+                     → InstructionList {Γ} x z
+
 -- data _⊢_ (Γ : Context) : Set where -- FIXME
 
 --------------------------------------------------------------------------------
@@ -475,13 +562,6 @@ record Store (Γ : Context) : Set where
     tablesᶠ  : List.t TableInst
     memsᶠ    : List.t MemInst
     globalsᶠ : List.t GlobalInst
-
-data InstructionList : List.t ValType → List.t ValType → Set where
-  InstructionNil  : ∀ {rest} → InstructionList rest rest
-  InstructionCons : ∀ {x y z}
-                  → Instruction x y
-                  → InstructionList y z
-                  → InstructionList x z
 
 record Label : Set where
   field
